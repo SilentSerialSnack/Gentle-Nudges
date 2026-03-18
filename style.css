@@ -66,8 +66,12 @@ h2 { font-size: 1.4rem; font-weight: 600; margin-bottom: 16px; border-bottom: 1p
 .help-text { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px; line-height: 1.4;}
 
 /* Tracking Card */
-.status-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.status-indicators { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+.status-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+.toggle-container { display: flex; flex-direction: column; gap: 12px; }
+.toggle-item { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.toggle-label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.warning-text { font-size: 0.8rem; color: #fbbf24; background: rgba(251, 191, 36, 0.1); padding: 10px; border-radius: 8px; border-left: 3px solid #fbbf24; margin-bottom: 16px; line-height: 1.4; animation: slide-up 0.3s ease; }
+.status-indicators { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; width: 100%; }
 .indicator { display: flex; align-items: center; gap: 12px; font-size: 0.95rem; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); }
 .indicator.active { border-color: var(--success); box-shadow: 0 0 10px rgba(52, 211, 153, 0.1); }
 .indicator.error { border-color: var(--error); box-shadow: 0 0 10px rgba(248, 113, 113, 0.1); }

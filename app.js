@@ -14,6 +14,9 @@ const STATE = {
     intervalId: null,
     sessionTimerId: null,
     entryTime: null,
+    autoDetectEnabled: false,
+    autoDetectRadius: 100, // Search radius in meters
+    lastAutoDetectTime: 0,
     targetLocation: {
         lat: null,
         lng: null,
@@ -28,6 +31,8 @@ const STATE = {
 // DOM Elements
 const els = {
     toggle: document.getElementById('tracking-toggle'),
+    autoDetectToggle: document.getElementById('auto-detect-toggle'),
+    autoDetectWarning: document.getElementById('auto-detect-warning'),
     locIndicator: document.getElementById('location-indicator'),
     userPosIndicator: document.getElementById('user-position-indicator'),
     sessionTimerIndicator: document.getElementById('session-timer-indicator'),
@@ -68,6 +73,7 @@ function loadPreferences() {
         const storedInt = localStorage.getItem('gn_nudge_interval');
         const storedMsg = localStorage.getItem('gn_nudge_messages');
         const storedTracking = localStorage.getItem('gn_tracking');
+        const storedAutoDetect = localStorage.getItem('gn_auto_detect');
 
         if (storedLat && storedLng) {
             STATE.targetLocation.lat = parseFloat(storedLat);
@@ -94,6 +100,12 @@ function loadPreferences() {
         if (storedTracking === 'true') {
             STATE.trackingEnabled = true;
             els.toggle.checked = true;
+        }
+
+        if (storedAutoDetect === 'true') {
+            STATE.autoDetectEnabled = true;
+            els.autoDetectToggle.checked = true;
+            els.autoDetectWarning.style.display = 'block';
         }
     } catch (e) {
         console.error("Local storage error:", e);
@@ -131,6 +143,12 @@ function savePreferences() {
 function saveTrackingState(isEnabled) {
     try {
         localStorage.setItem('gn_tracking', isEnabled ? 'true' : 'false');
+    } catch (e) {}
+}
+
+function saveAutoDetectState(isEnabled) {
+    try {
+        localStorage.setItem('gn_auto_detect', isEnabled ? 'true' : 'false');
     } catch (e) {}
 }
 
@@ -212,6 +230,10 @@ function processLocationUpdate(position) {
     _updateIndicator(els.locIndicator, `GPS Status: Active (±${acc}m)`, true);
     _updateIndicator(els.userPosIndicator, `${userLat.toFixed(5)}, ${userLng.toFixed(5)}`, true);
 
+    if (STATE.autoDetectEnabled) {
+        checkNearbyBars(userLat, userLng);
+    }
+
     if (STATE.targetLocation.lat === null || STATE.targetLocation.lng === null) {
         _setDistanceText('Target location not set');
         return;
@@ -222,37 +244,78 @@ function processLocationUpdate(position) {
 
     // Check if within bounds
     if (distance <= STATE.targetLocation.radius) {
-        if (!STATE.intervalId) {
-            // Just entered the zone
-            STATE.entryTime = Date.now();
-            triggerSingleNudge(); // Initial nudge
-            
-            // Start the auto-nudge interval timer
-            STATE.intervalId = setInterval(triggerSingleNudge, STATE.targetLocation.interval * 60 * 1000);
-            
-            // Start the visual session timer (updates every second)
-            STATE.sessionTimerId = setInterval(updateSessionTimer, 1000);
-            els.sessionTimerIndicator.classList.add('active');
-            
-            showToast(`Entered zone. Auto-nudging every ${STATE.targetLocation.interval}m.`, 'success');
-        }
+        startZoneSession();
     } else {
-        // Outside bounds
-        if (STATE.intervalId) {
-            clearInterval(STATE.intervalId);
-            STATE.intervalId = null;
-            
-            if (STATE.sessionTimerId) {
-                clearInterval(STATE.sessionTimerId);
-                STATE.sessionTimerId = null;
+        stopZoneSession();
+    }
+}
+
+async function checkNearbyBars(lat, lng) {
+    const now = Date.now();
+    // Only query Overpass every 60 seconds to avoid rate limiting and battery drain
+    if (now - STATE.lastAutoDetectTime < 60000) return;
+    STATE.lastAutoDetectTime = now;
+
+    try {
+        // Query Overpass API for bars or pubs within the specified radius
+        const query = `[out:json][timeout:25];(node["amenity"~"bar|pub"](around:${STATE.autoDetectRadius},${lat},${lng});way["amenity"~"bar|pub"](around:${STATE.autoDetectRadius},${lat},${lng});relation["amenity"~"bar|pub"](around:${STATE.autoDetectRadius},${lat},${lng}););out body;>;out skel qt;`;
+        const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+        
+        const response = await fetch(url, {
+            headers: {
+                'Accept': 'application/json',
+                'User-Agent': 'GentleNudgesPWA/1.0 (Privacy-First Hydration App)'
             }
-            
-            STATE.entryTime = null;
-            els.sessionTimerIndicator.classList.remove('active');
-            _updateIndicator(els.sessionTimerIndicator, 'Time in Zone: 00:00:00', false);
-            
-            showToast('Left the zone. Timer and nudges paused.', 'success');
+        });
+        const data = await response.json();
+
+        if (data.elements && data.elements.length > 0) {
+            console.log("Auto-detected bars nearby:", data.elements);
+            startZoneSession();
+        } else {
+            console.log("No bars detected nearby.");
+            // If we are NOT in a manually set zone, stop the session
+            if (STATE.targetLocation.lat === null || calculateDistance(lat, lng, STATE.targetLocation.lat, STATE.targetLocation.lng) > STATE.targetLocation.radius) {
+                stopZoneSession();
+            }
         }
+    } catch (e) {
+        console.error("Overpass API error:", e);
+    }
+}
+
+function startZoneSession() {
+    if (!STATE.intervalId) {
+        // Just entered the zone
+        STATE.entryTime = Date.now();
+        triggerSingleNudge(); // Initial nudge
+        
+        // Start the auto-nudge interval timer
+        STATE.intervalId = setInterval(triggerSingleNudge, STATE.targetLocation.interval * 60 * 1000);
+        
+        // Start the visual session timer (updates every second)
+        STATE.sessionTimerId = setInterval(updateSessionTimer, 1000);
+        els.sessionTimerIndicator.classList.add('active');
+        
+        showToast(`In the zone. Auto-nudging every ${STATE.targetLocation.interval}m.`, 'success');
+    }
+}
+
+function stopZoneSession() {
+    if (STATE.intervalId) {
+        clearInterval(STATE.intervalId);
+        STATE.intervalId = null;
+        
+        if (STATE.sessionTimerId) {
+            clearInterval(STATE.sessionTimerId);
+            STATE.sessionTimerId = null;
+        }
+        
+        STATE.entryTime = null;
+        els.sessionTimerIndicator.classList.remove('active');
+        _updateIndicator(els.sessionTimerIndicator, 'Time in Zone: 00:00:00', false);
+        
+        showToast('Left the zone. Timer and nudges paused.', 'success');
     }
 }
 
@@ -358,6 +421,22 @@ function toggleTracking(enabled) {
 function setupEventListeners() {
     els.toggle.addEventListener('change', (e) => {
         toggleTracking(e.target.checked);
+    });
+
+    els.autoDetectToggle.addEventListener('change', (e) => {
+        STATE.autoDetectEnabled = e.target.checked;
+        saveAutoDetectState(STATE.autoDetectEnabled);
+        els.autoDetectWarning.style.display = STATE.autoDetectEnabled ? 'block' : 'none';
+        
+        if (STATE.autoDetectEnabled) {
+            showToast('Auto-detection enabled. Checking nearby...', 'success');
+            // Immediate check if tracking is already on
+            if (STATE.trackingEnabled) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    checkNearbyBars(pos.coords.latitude, pos.coords.longitude);
+                });
+            }
+        }
     });
 
     els.form.addEventListener('submit', (e) => {

@@ -27,10 +27,20 @@
                 <div class="status-header">
                     <h2>Tracking Status</h2>
                     <div class="toggle-container">
-                        <label class="switch">
-                            <input type="checkbox" id="tracking-toggle">
-                            <span class="slider round"></span>
-                        </label>
+                        <div class="toggle-item">
+                            <span class="toggle-label">Track</span>
+                            <label class="switch">
+                                <input type="checkbox" id="tracking-toggle">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="toggle-item">
+                            <span class="toggle-label">Auto-Detect Bars</span>
+                            <label class="switch">
+                                <input type="checkbox" id="auto-detect-toggle">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
                     </div>
                 </div>
                 
@@ -66,6 +76,7 @@
             <section class="card glass-panel" id="settings-card">
                 <h2>Target Location</h2>
                 <p class="help-text">Set the GPS coordinates of the bar or location you want to be nudged at. Data stays 100% on your device.</p>
+                <p id="auto-detect-warning" class="warning-text" style="display: none;">⚠️ Auto-detect sends your coordinates to OpenStreetMap's Overpass API to find nearby bars.</p>
                 
                 <form id="location-form">
                     <button type="button" id="btn-use-current" class="btn btn-secondary w-100 mb-16">📍 Use Current Location</button>
@@ -96,7 +107,7 @@
 
         <footer class="text-center">
             <p class="privacy-note">🔒 100% Local. Zero data collected.</p>
-            <p class="disclaimer">Note: This is an AI created app.</p>
+            <p class="disclaimer">Note: This is an AI created app. Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>.</p>
         </footer>
     </div>
 
