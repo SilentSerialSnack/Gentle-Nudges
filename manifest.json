@@ -9,9 +9,16 @@
   "theme_color": "#38bdf8",
   "icons": [
     {
-      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzM4YmRmOCIvPjxwYXRoIGQ9Ik01MCAyNUM1MCAyNSAzNSA0NSAzNSA2MEMzNSA2OC4yODQzIDQxLjcxNTcgNzUgNTAgNzVDNTguMjg0MyA3NSA2NSA2OC4yODQzIDY1IDYwQzY1IDQ1IDUwIDI1IDUwIDI1WiIgZmlsbD0id2hpdGUiLz48L3N2Zz4=",
+      "src": "icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon.png",
       "sizes": "192x192",
-      "type": "image/svg+xml"
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
