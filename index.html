@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gentle Nudges | Hydration Reminder</title>
+    <meta name="description" content="A privacy-first, local-only PWA that nudges you to drink water based on your location.">
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#38bdf8">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="glass-panel text-center">
+            <h1>Gentle Nudges</h1>
+            <p class="subtitle">Your private, on-device reminder on saving money and being a better person.</p>
+        </header>
+
+        <main>
+            <section class="card glass-panel" id="status-card">
+                <div class="status-header">
+                    <h2>Tracking Status</h2>
+                    <div class="toggle-container">
+                        <label class="switch">
+                            <input type="checkbox" id="tracking-toggle">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="status-indicators">
+                    <div class="indicator" id="location-indicator">
+                        <span class="icon">📍</span>
+                        <span class="text">Location: Unknown</span>
+                    </div>
+                    <div class="indicator" id="user-position-indicator" style="display: none;">
+                        <span class="icon">🗺️</span>
+                        <span class="text">Your Position: N/A</span>
+                    </div>
+                    <div class="indicator" id="session-timer-indicator">
+                        <span class="icon">⏱️</span>
+                        <span class="text">Time in Zone: 00:00:00</span>
+                    </div>
+                    <div class="indicator" id="distance-indicator">
+                        <span class="icon">📏</span>
+                        <span class="text">Distance: N/A</span>
+                    </div>
+                    <div class="indicator" id="notification-indicator">
+                        <span class="icon">🔔</span>
+                        <span class="text">Notifications: Disabled</span>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button id="btn-enable-permissions" class="btn btn-primary">Enable Permissions</button>
+                    <button id="btn-test-notification" class="btn btn-secondary">Test Nudge</button>
+                </div>
+            </section>
+
+            <section class="card glass-panel" id="settings-card">
+                <h2>Target Location</h2>
+                <p class="help-text">Set the GPS coordinates of the bar or location you want to be nudged at. Data stays 100% on your device.</p>
+                
+                <form id="location-form">
+                    <button type="button" id="btn-use-current" class="btn btn-secondary w-100 mb-16">📍 Use Current Location</button>
+                    <div class="input-group" style="display: none;">
+                        <label for="target-lat">Latitude</label>
+                        <input type="number" id="target-lat" step="any" placeholder="e.g. 40.7128" required>
+                    </div>
+                    <div class="input-group" style="display: none;">
+                        <label for="target-lng">Longitude</label>
+                        <input type="number" id="target-lng" step="any" placeholder="e.g. -74.0060" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="target-radius">Trigger Radius (meters)</label>
+                        <input type="number" id="target-radius" value="100" min="10" max="1000" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="nudge-interval">Auto-Nudge Interval (minutes)</label>
+                        <input type="number" id="nudge-interval" value="5" min="1" max="120" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="nudge-messages">Custom Nudges (one per line)</label>
+                        <textarea id="nudge-messages" rows="4" placeholder="Drink water!&#10;Hydrate now!&#10;Time for a sip."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Save Preferences</button>
+                </form>
+            </section>
+        </main>
+
+        <footer class="text-center">
+            <p class="privacy-note">🔒 100% Local. Zero data collected.</p>
+            <p class="disclaimer">Note: This is an AI created app.</p>
+        </footer>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "Gentle Nudges",
+  "short_name": "Nudges",
+  "description": "A privacy-first progressive web app that gently nudges you to drink water when near predefined locations.",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#38bdf8",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzM4YmRmOCIvPjxwYXRoIGQ9Ik01MCAyNUM1MCAyNSAzNSA0NSAzNSA2MEMzNSA2OC4yODQzIDQxLjcxNTcgNzUgNTAgNzVDNTguMjg0MyA3NSA2NSA2OC4yODQzIDY1IDYwQzY1IDQ1IDUwIDI1IDUwIDI1WiIgZmlsbD0id2hpdGUiLz48L3N2Zz4=",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}
