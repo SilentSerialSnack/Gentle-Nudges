@@ -1,7 +1,6 @@
 const CACHE_NAME = 'gentle-nudges-v1';
 const ASSETS_TO_CACHE = [
-  './',
-  './index.html',
+  'index.html',
   './style.css',
   './app.js',
   './manifest.json'
