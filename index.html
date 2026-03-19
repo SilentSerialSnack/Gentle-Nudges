@@ -93,9 +93,15 @@
                         <label for="target-radius">Trigger Radius (meters)</label>
                         <input type="number" id="target-radius" value="100" min="10" max="1000" required>
                     </div>
-                    <div class="input-group">
-                        <label for="nudge-interval">Auto-Nudge Interval (minutes)</label>
-                        <input type="number" id="nudge-interval" value="5" min="1" max="120" required>
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label for="nudge-min">Min Interval (min)</label>
+                            <input type="number" id="nudge-min" value="5" min="1" max="120" required>
+                        </div>
+                        <div class="input-group">
+                            <label for="nudge-max">Max Interval (min)</label>
+                            <input type="number" id="nudge-max" value="15" min="1" max="120" required>
+                        </div>
                     </div>
                     <div class="input-group">
                         <label for="nudge-messages">Custom Nudges (one per line)</label>

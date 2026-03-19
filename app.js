@@ -21,7 +21,8 @@ const STATE = {
         lat: null,
         lng: null,
         radius: 100, // meters
-        interval: 5, // minutes
+        minInterval: 5, // minutes
+        maxInterval: 15, // minutes
         messages: []
     },
     hasNotificationPerms: false,
@@ -41,12 +42,13 @@ const els = {
     btnEnablePerms: document.getElementById('btn-enable-permissions'),
     btnTestNudge: document.getElementById('btn-test-notification'),
     btnUseCurrent: document.getElementById('btn-use-current'),
-    form: document.getElementById('location-form'),
     inputLat: document.getElementById('target-lat'),
     inputLng: document.getElementById('target-lng'),
     inputRadius: document.getElementById('target-radius'),
-    inputInterval: document.getElementById('nudge-interval'),
+    inputMin: document.getElementById('nudge-min'),
+    inputMax: document.getElementById('nudge-max'),
     inputMessages: document.getElementById('nudge-messages'),
+    form: document.getElementById('location-form'),
     toastContainer: document.getElementById('toast-container')
 };
 
@@ -69,8 +71,9 @@ function loadPreferences() {
     try {
         const storedLat = localStorage.getItem('gn_target_lat');
         const storedLng = localStorage.getItem('gn_target_lng');
-        const storedRad = localStorage.getItem('gn_target_radius');
-        const storedInt = localStorage.getItem('gn_nudge_interval');
+        const storedRadius = localStorage.getItem('gn_target_radius');
+        const storedMin = localStorage.getItem('gn_nudge_min');
+        const storedMax = localStorage.getItem('gn_nudge_max');
         const storedMsg = localStorage.getItem('gn_nudge_messages');
         const storedTracking = localStorage.getItem('gn_tracking');
         const storedAutoDetect = localStorage.getItem('gn_auto_detect');
@@ -82,19 +85,31 @@ function loadPreferences() {
             els.inputLng.value = storedLng;
         }
         
-        if (storedRad) {
-            STATE.targetLocation.radius = parseInt(storedRad, 10);
-            els.inputRadius.value = storedRad;
+        if (storedRadius) {
+            STATE.targetLocation.radius = parseInt(storedRadius, 10);
+            els.inputRadius.value = storedRadius;
         }
 
-        if (storedInt) {
-            STATE.targetLocation.interval = parseInt(storedInt, 10);
-            els.inputInterval.value = storedInt;
+        if (storedMin) {
+            STATE.targetLocation.minInterval = parseInt(storedMin, 10);
+            els.inputMin.value = storedMin;
+        }
+
+        if (storedMax) {
+            STATE.targetLocation.maxInterval = parseInt(storedMax, 10);
+            els.inputMax.value = storedMax;
         }
 
         if (storedMsg) {
-            STATE.targetLocation.messages = JSON.parse(storedMsg);
-            els.inputMessages.value = STATE.targetLocation.messages.join('\n');
+            try {
+                const parsed = JSON.parse(storedMsg);
+                STATE.targetLocation.messages = Array.isArray(parsed) ? parsed : [];
+                els.inputMessages.value = STATE.targetLocation.messages.join('\n');
+            } catch (e) {
+                // Fallback for old format
+                STATE.targetLocation.messages = storedMsg.split('\n').map(m => m.trim()).filter(m => m.length > 0);
+                els.inputMessages.value = STATE.targetLocation.messages.join('\n');
+            }
         }
 
         if (storedTracking === 'true') {
@@ -113,28 +128,38 @@ function loadPreferences() {
 }
 
 function savePreferences() {
-    try {
-        localStorage.setItem('gn_target_lat', els.inputLat.value);
-        localStorage.setItem('gn_target_lng', els.inputLng.value);
-        localStorage.setItem('gn_target_radius', els.inputRadius.value);
-        localStorage.setItem('gn_nudge_interval', els.inputInterval.value);
+    const lat = parseFloat(els.inputLat.value);
+    const lng = parseFloat(els.inputLng.value);
+    const radius = parseInt(els.inputRadius.value, 10);
+    const minInt = parseInt(els.inputMin.value, 10);
+    const maxInt = parseInt(els.inputMax.value, 10);
+    const messages = els.inputMessages.value.split('\n').map(m => m.trim()).filter(m => m.length > 0);
 
-        const messages = els.inputMessages.value.split('\n').map(m => m.trim()).filter(m => m.length > 0);
+    if (isNaN(lat) || isNaN(lng)) {
+        showToast('Please set a target location first.', 'error');
+        return;
+    }
+
+    if (minInt > maxInt) {
+        showToast('Min interval cannot be greater than Max.', 'error');
+        return;
+    }
+
+    STATE.targetLocation.lat = lat;
+    STATE.targetLocation.lng = lng;
+    STATE.targetLocation.radius = radius;
+    STATE.targetLocation.minInterval = minInt;
+    STATE.targetLocation.maxInterval = maxInt;
+    STATE.targetLocation.messages = messages;
+
+    try {
+        localStorage.setItem('gn_target_lat', lat);
+        localStorage.setItem('gn_target_lng', lng);
+        localStorage.setItem('gn_target_radius', radius);
+        localStorage.setItem('gn_nudge_min', minInt);
+        localStorage.setItem('gn_nudge_max', maxInt);
         localStorage.setItem('gn_nudge_messages', JSON.stringify(messages));
-        
-        STATE.targetLocation.lat = parseFloat(els.inputLat.value);
-        STATE.targetLocation.lng = parseFloat(els.inputLng.value);
-        STATE.targetLocation.radius = parseInt(els.inputRadius.value, 10);
-        STATE.targetLocation.interval = parseInt(els.inputInterval.value, 10);
-        STATE.targetLocation.messages = messages;
-        
         showToast('Preferences saved locally.', 'success');
-        
-        if (STATE.trackingEnabled) {
-            // Restart tracking to apply new location immediately if currently close
-            stopTracking();
-            startTracking();
-        }
     } catch (e) {
         showToast('Could not save to local storage.', 'error');
     }
@@ -290,20 +315,35 @@ function startZoneSession() {
         STATE.entryTime = Date.now();
         triggerSingleNudge(); // Initial nudge
         
-        // Start the auto-nudge interval timer
-        STATE.intervalId = setInterval(triggerSingleNudge, STATE.targetLocation.interval * 60 * 1000);
+        // Start the recursive variability timer
+        scheduleNextNudge();
         
         // Start the visual session timer (updates every second)
         STATE.sessionTimerId = setInterval(updateSessionTimer, 1000);
         els.sessionTimerIndicator.classList.add('active');
         
-        showToast(`In the zone. Auto-nudging every ${STATE.targetLocation.interval}m.`, 'success');
+        showToast(`In the zone. Variability timer active (${STATE.targetLocation.minInterval}-${STATE.targetLocation.maxInterval}m).`, 'success');
     }
+}
+
+function scheduleNextNudge() {
+    if (!STATE.entryTime) return; // Not in zone
+
+    const minMs = STATE.targetLocation.minInterval * 60 * 1000;
+    const maxMs = STATE.targetLocation.maxInterval * 60 * 1000;
+    const delay = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+
+    console.log(`Scheduling next nudge in ${Math.round(delay/60000)} minutes.`);
+    
+    STATE.intervalId = setTimeout(() => {
+        triggerSingleNudge();
+        scheduleNextNudge(); // Recursive call for variability
+    }, delay);
 }
 
 function stopZoneSession() {
     if (STATE.intervalId) {
-        clearInterval(STATE.intervalId);
+        clearTimeout(STATE.intervalId);
         STATE.intervalId = null;
         
         if (STATE.sessionTimerId) {

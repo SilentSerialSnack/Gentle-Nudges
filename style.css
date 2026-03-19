@@ -58,6 +58,8 @@ body {
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
 
+.input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
 /* Typography */
 .text-center { text-align: center; }
 h1 { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.02em; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px;}
