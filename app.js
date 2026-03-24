@@ -14,6 +14,8 @@ const STATE = {
     intervalId: null,
     sessionTimerId: null,
     entryTime: null,
+    isFirstNudgePending: false, // Tracks the 10s "settle" period
+    triggerSource: null, // "manual" or "auto"
     autoDetectEnabled: false,
     autoDetectRadius: 100, // Search radius in meters
     lastAutoDetectTime: 0,
@@ -21,6 +23,7 @@ const STATE = {
         lat: null,
         lng: null,
         radius: 100, // meters
+        entryDelay: 10, // seconds
         minInterval: 5, // minutes
         maxInterval: 15, // minutes
         messages: []
@@ -45,6 +48,7 @@ const els = {
     inputLat: document.getElementById('target-lat'),
     inputLng: document.getElementById('target-lng'),
     inputRadius: document.getElementById('target-radius'),
+    inputEntryDelay: document.getElementById('entry-delay'),
     inputMin: document.getElementById('nudge-min'),
     inputMax: document.getElementById('nudge-max'),
     inputMessages: document.getElementById('nudge-messages'),
@@ -72,6 +76,7 @@ function loadPreferences() {
         const storedLat = localStorage.getItem('gn_target_lat');
         const storedLng = localStorage.getItem('gn_target_lng');
         const storedRadius = localStorage.getItem('gn_target_radius');
+        const storedEntryDelay = localStorage.getItem('gn_entry_delay');
         const storedMin = localStorage.getItem('gn_nudge_min');
         const storedMax = localStorage.getItem('gn_nudge_max');
         const storedMsg = localStorage.getItem('gn_nudge_messages');
@@ -88,6 +93,11 @@ function loadPreferences() {
         if (storedRadius) {
             STATE.targetLocation.radius = parseInt(storedRadius, 10);
             els.inputRadius.value = storedRadius;
+        }
+
+        if (storedEntryDelay) {
+            STATE.targetLocation.entryDelay = parseInt(storedEntryDelay, 10);
+            els.inputEntryDelay.value = storedEntryDelay;
         }
 
         if (storedMin) {
@@ -131,6 +141,7 @@ function savePreferences() {
     const lat = parseFloat(els.inputLat.value);
     const lng = parseFloat(els.inputLng.value);
     const radius = parseInt(els.inputRadius.value, 10);
+    const entryDelay = parseInt(els.inputEntryDelay.value, 10);
     const minInt = parseInt(els.inputMin.value, 10);
     const maxInt = parseInt(els.inputMax.value, 10);
     const messages = els.inputMessages.value.split('\n').map(m => m.trim()).filter(m => m.length > 0);
@@ -148,6 +159,7 @@ function savePreferences() {
     STATE.targetLocation.lat = lat;
     STATE.targetLocation.lng = lng;
     STATE.targetLocation.radius = radius;
+    STATE.targetLocation.entryDelay = entryDelay;
     STATE.targetLocation.minInterval = minInt;
     STATE.targetLocation.maxInterval = maxInt;
     STATE.targetLocation.messages = messages;
@@ -156,6 +168,7 @@ function savePreferences() {
         localStorage.setItem('gn_target_lat', lat);
         localStorage.setItem('gn_target_lng', lng);
         localStorage.setItem('gn_target_radius', radius);
+        localStorage.setItem('gn_entry_delay', entryDelay);
         localStorage.setItem('gn_nudge_min', minInt);
         localStorage.setItem('gn_nudge_max', maxInt);
         localStorage.setItem('gn_nudge_messages', JSON.stringify(messages));
@@ -255,6 +268,14 @@ function processLocationUpdate(position) {
     _updateIndicator(els.locIndicator, `GPS Status: Active (±${acc}m)`, true);
     _updateIndicator(els.userPosIndicator, `${userLat.toFixed(5)}, ${userLng.toFixed(5)}`, true);
 
+    // Accuracy Guard: Ignore updates where accuracy is worse than the radius
+    const maxAllowedAccuracy = Math.max(STATE.targetLocation.radius || 100, 50);
+    if (acc > maxAllowedAccuracy) {
+        console.log(`Ignoring update: Accuracy too low (${acc}m > ${maxAllowedAccuracy}m)`);
+        _updateIndicator(els.locIndicator, `GPS Status: Low Accuracy (±${acc}m)`, false, true);
+        return;
+    }
+
     if (STATE.autoDetectEnabled) {
         checkNearbyBars(userLat, userLng);
     }
@@ -269,9 +290,12 @@ function processLocationUpdate(position) {
 
     // Check if within bounds
     if (distance <= STATE.targetLocation.radius) {
-        startZoneSession();
+        startZoneSession("manual");
     } else {
-        stopZoneSession();
+        // Only stop if auto-detect also doesn't find anything (handled in checkNearbyBars/stopZoneSession)
+        if (!STATE.autoDetectEnabled) {
+            stopZoneSession();
+        }
     }
 }
 
@@ -295,8 +319,9 @@ async function checkNearbyBars(lat, lng) {
         const data = await response.json();
 
         if (data.elements && data.elements.length > 0) {
-            console.log("Auto-detected bars nearby:", data.elements);
-            startZoneSession();
+            const barName = data.elements[0].tags.name || "a nearby bar";
+            console.log(`Auto-detected bars nearby: ${barName}`);
+            startZoneSession("auto", barName);
         } else {
             console.log("No bars detected nearby.");
             // If we are NOT in a manually set zone, stop the session
@@ -309,20 +334,30 @@ async function checkNearbyBars(lat, lng) {
     }
 }
 
-function startZoneSession() {
-    if (!STATE.intervalId) {
+function startZoneSession(source, name) {
+    if (!STATE.entryTime) {
         // Just entered the zone
         STATE.entryTime = Date.now();
-        triggerSingleNudge(); // Initial nudge
+        STATE.triggerSource = source;
+        STATE.isFirstNudgePending = true;
         
-        // Start the recursive variability timer
-        scheduleNextNudge();
-        
-        // Start the visual session timer (updates every second)
-        STATE.sessionTimerId = setInterval(updateSessionTimer, 1000);
-        els.sessionTimerIndicator.classList.add('active');
-        
-        showToast(`In the zone. Variability timer active (${STATE.targetLocation.minInterval}-${STATE.targetLocation.maxInterval}m).`, 'success');
+        const label = source === "auto" ? `Auto-detected: ${name}` : "Manual target reached";
+        showToast(`${label}. Staying ${STATE.targetLocation.entryDelay}s to confirm...`, 'success');
+
+        // Arrival Delay: Only nudge and start timer after the defined delay
+        setTimeout(() => {
+            // Verify we are still in a session (haven't left in those seconds)
+            if (STATE.entryTime && STATE.isFirstNudgePending) {
+                STATE.isFirstNudgePending = false;
+                triggerSingleNudge(); // First real nudge
+                scheduleNextNudge();
+                
+                STATE.sessionTimerId = setInterval(updateSessionTimer, 1000);
+                els.sessionTimerIndicator.classList.add('active');
+                
+                showToast(`Zone confirmed. Variability timer active.`, 'success');
+            }
+        }, STATE.targetLocation.entryDelay * 1000); 
     }
 }
 
@@ -342,9 +377,11 @@ function scheduleNextNudge() {
 }
 
 function stopZoneSession() {
-    if (STATE.intervalId) {
-        clearTimeout(STATE.intervalId);
-        STATE.intervalId = null;
+    if (STATE.entryTime) {
+        if (STATE.intervalId) {
+            clearTimeout(STATE.intervalId);
+            STATE.intervalId = null;
+        }
         
         if (STATE.sessionTimerId) {
             clearInterval(STATE.sessionTimerId);
@@ -352,6 +389,8 @@ function stopZoneSession() {
         }
         
         STATE.entryTime = null;
+        STATE.isFirstNudgePending = false;
+        STATE.triggerSource = null;
         els.sessionTimerIndicator.classList.remove('active');
         _updateIndicator(els.sessionTimerIndicator, 'Time in Zone: 00:00:00', false);
         

@@ -89,9 +89,15 @@
                         <label for="target-lng">Longitude</label>
                         <input type="number" id="target-lng" step="any" placeholder="e.g. -74.0060" required>
                     </div>
-                    <div class="input-group">
-                        <label for="target-radius">Trigger Radius (meters)</label>
-                        <input type="number" id="target-radius" value="100" min="10" max="1000" required>
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label for="target-radius">Radius (meters)</label>
+                            <input type="number" id="target-radius" value="100" min="10" max="1000" required>
+                        </div>
+                        <div class="input-group">
+                            <label for="entry-delay">Entry Delay (s)</label>
+                            <input type="number" id="entry-delay" value="10" min="0" max="60" required>
+                        </div>
                     </div>
                     <div class="input-row">
                         <div class="input-group">
